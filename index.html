@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mine Worker Safety Dashboard</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+    body { background: #f5f5f0; font-family: 'Segoe UI', sans-serif; }
+    .navbar { background: #2b2b2b; }
+    .navbar-brand { color: #d97706 !important; font-weight: bold; }
+    .card { border: none; border-radius: 14px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: transform 0.2s; }
+    .card:hover { transform: translateY(-4px); }
+    .status-badge { font-size: 0.85rem; padding: 5px 12px; border-radius: 20px; color: #fff; }
+    .green { background-color: #2e7d32; }
+    .yellow { background-color: #f9a825; }
+    .red { background-color: #c62828; }
+    .worker-icon { font-size: 1.8rem; }
+    .alert-list { font-size: 0.8rem; color: #c62828; }
+    footer { margin-top: 40px; padding: 15px; text-align: center; color: #777; }
+    .btn-sos { background: #c62828; color: #fff; border: none; }
+    .btn-sos:hover { background: #921f1f; color: #fff; }
+    .summary-box { border-radius: 12px; padding: 15px 20px; color: #fff; text-align: center; }
+</style>
+</head>
+<body>
+
+<nav class="navbar navbar-dark mb-4">
+  <div class="container d-flex justify-content-between align-items-center">
+    <span class="navbar-brand">⛑️ Intelligent Mine Worker Safety Companion</span>
+    <div class="d-flex align-items-center gap-2">
+        <a href="/map" class="btn btn-sm btn-outline-light">🗺️ Map View</a>
+        {% if user == 'admin' %}
+        <a href="/admin" class="btn btn-sm btn-outline-light">⚙️ Admin Panel</a>
+        {% endif %}
+        <a href="/logout" class="btn btn-sm btn-outline-light">Logout</a>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+    <div class="row mb-4" id="summaryRow"></div>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0">Live Worker Status</h5>
+        <button class="btn btn-sm btn-warning" onclick="loadWorkers()">🔄 Refresh</button>
+    </div>
+
+    <div class="row" id="workerCards">
+        <!-- Cards injected here by JS -->
+    </div>
+</div>
+
+<footer>
+    Mini Project — CSE | Intelligent Mobile Safety Companion for Mine Workers
+</footer>
+
+<script>
+function statusColor(status) {
+    if (status === 'Safe') return 'green';
+    if (status === 'Warning') return 'yellow';
+    return 'red';
+}
+
+async function sendSOS(workerId, name) {
+    const res = await fetch('/sos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `worker_id=${workerId}`
+    });
+    const data = await res.json();
+    alert(`🚨 ${data.message}`);
+}
+
+async function loadWorkers() {
+    const res = await fetch('/workers');
+    const data = await res.json();
+
+    const container = document.getElementById('workerCards');
+    container.innerHTML = '';
+
+    let safe = 0, warning = 0, danger = 0;
+
+    data.forEach(w => {
+        if (w.status === 'Safe') safe++;
+        else if (w.status === 'Warning') warning++;
+        else danger++;
+
+        const card = document.createElement('div');
+        card.className = 'col-md-4 mb-4';
+        card.innerHTML = `
+            <div class="card p-3">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="worker-icon">👷</div>
+                        <h6 class="mt-1 mb-0">${w.name}</h6>
+                        <small class="text-muted">${w.id} • ${w.zone}</small>
+                    </div>
+                    <span class="status-badge ${statusColor(w.status)}">${w.status}</span>
+                </div>
+                <hr>
+                <p class="mb-1"><strong>Methane:</strong> ${w.methane} ppm</p>
+                <p class="mb-1"><strong>Oxygen:</strong> ${w.oxygen}%</p>
+                <p class="mb-1"><strong>Temperature:</strong> ${w.temperature}°C</p>
+                <p class="mb-2"><strong>Heart Rate:</strong> ${w.heart_rate} bpm</p>
+                ${w.alerts.length > 0 ? `<div class="alert-list">⚠️ ${w.alerts.join(', ')}</div>` : ''}
+                <button class="btn btn-sos btn-sm w-100 mt-2" onclick="sendSOS('${w.id}', '${w.name}')">🚨 Send SOS</button>
+                <small class="text-muted d-block mt-1">Last updated: ${w.timestamp}</small>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+
+    document.getElementById('summaryRow').innerHTML = `
+        <div class="col-md-4 mb-2">
+            <div class="summary-box" style="background:#2e7d32;">
+                <h4 class="mb-0">${safe}</h4><small>Safe</small>
+            </div>
+        </div>
+        <div class="col-md-4 mb-2">
+            <div class="summary-box" style="background:#f9a825;">
+                <h4 class="mb-0">${warning}</h4><small>Warning</small>
+            </div>
+        </div>
+        <div class="col-md-4 mb-2">
+            <div class="summary-box" style="background:#c62828;">
+                <h4 class="mb-0">${danger}</h4><small>Danger</small>
+            </div>
+        </div>
+    `;
+}
+
+window.onload = loadWorkers;
+// Auto-refresh every 15 seconds to simulate live monitoring
+setInterval(loadWorkers, 15000);
+</script>
+
+</body>
+</html>
